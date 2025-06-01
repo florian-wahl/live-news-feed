@@ -432,38 +432,29 @@
         const NEWS_SOURCES = {
             nyt: {
                 name: "New York Times",
-                url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
                 enabled: true
             },
             wsj: {
                 name: "Wall Street Journal",
-                url: "https://feeds.content.dowjones.io/public/rss/RSSWorldNews",
                 enabled: true
             },
             guardian: {
                 name: "The Guardian",
-                url: "https://www.theguardian.com/world/rss",
                 enabled: true
             },
             bbc: {
                 name: "BBC News",
-                url: "https://feeds.bbci.co.uk/news/world/rss.xml",
                 enabled: true
             },
             npr: {
                 name: "NPR",
-                url: "https://feeds.npr.org/1004/rss.xml",
                 enabled: true
             },
             reuters: {
                 name: "Reuters",
-                url: "https://ir.thomsonreuters.com/rss/news-releases.xml?items=15",
                 enabled: true
             }
         };
-
-        // Using a more reliable CORS proxy
-        const CORS_PROXY = "https://corsproxy.io/?";
 
         const REFRESH_INTERVAL_MS = 30 * 1000; // 30 seconds
         const MAX_RETRIES = 3;
@@ -595,17 +586,10 @@
             }
 
             try {
-                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-                console.log('Fetching from:', proxyUrl);
+                console.log('Fetching from:', url);
 
                 requestCount++;
-                const response = await fetch(proxyUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/xml, application/rss+xml, text/xml',
-                        'Content-Type': 'application/xml'
-                    }
-                });
+                const response = await fetch(url);
 
                 if (!response.ok) {
                     if (response.status === 429) { // Too Many Requests
@@ -614,12 +598,12 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const text = await response.text();
-                if (!text || text.trim().length === 0) {
-                    throw new Error('Empty response received');
+                const data = await response.json();
+                if (!data || !data.items) {
+                    throw new Error('Invalid response format');
                 }
 
-                return text;
+                return data;
             } catch (error) {
                 console.error('Fetch error:', error);
                 if (retries > 0) {
@@ -630,69 +614,6 @@
                 }
                 throw error;
             }
-        }
-
-        async function fetchFeed(sourceId, source) {
-            try {
-                console.log(`Fetching feed from ${source.name}...`);
-                const xmlText = await fetchWithRetry(source.url);
-
-                // Log the first 200 characters of the response for debugging
-                console.log(`Response from ${source.name}:`, xmlText.substring(0, 200));
-
-                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-
-                const parserError = xmlDoc.querySelector('parsererror');
-                if (parserError) {
-                    console.error(`XML parsing error for ${source.name}:`, parserError.textContent);
-                    throw new Error('XML parsing failed');
-                }
-
-                const items = Array.from(xmlDoc.getElementsByTagName("item"));
-                console.log(`Found ${items.length} items from ${source.name}`);
-
-                if (items.length === 0) {
-                    throw new Error('No items found in feed');
-                }
-
-                return items.map(item => {
-                    const titleNode = item.getElementsByTagName("title")[0];
-                    const linkNode = item.getElementsByTagName("link")[0];
-                    const dateNode = item.getElementsByTagName("pubDate")[0];
-                    const descNode = item.getElementsByTagName("description")[0];
-
-                    return {
-                        title: titleNode?.textContent || "No title",
-                        link: linkNode?.textContent || "#",
-                        pubDate: dateNode?.textContent || new Date().toISOString(),
-                        description: descNode?.textContent || "",
-                        source: source.name,
-                        date: new Date(dateNode?.textContent || Date.now()),
-                        isError: false
-                    };
-                });
-            } catch (err) {
-                console.error(`Error fetching ${source.name} feed:`, err);
-                return [{
-                    title: `Error loading ${source.name} feed`,
-                    link: "#",
-                    pubDate: new Date().toISOString(),
-                    description: `Error: ${err.message}. Please try refreshing manually.`,
-                    source: source.name,
-                    date: new Date(),
-                    isError: true
-                }];
-            }
-        }
-
-        function updateNextRefreshTime() {
-            const nextRefresh = new Date(Date.now() + REFRESH_INTERVAL_MS);
-            nextRefreshEl.textContent = `Next refresh: ${nextRefresh.toLocaleTimeString()}`;
-        }
-
-        function setRefreshSpinner(active) {
-            refreshSpinner.classList.toggle('active', active);
-            refreshButton.disabled = active;
         }
 
         const fetchAndRenderFeed = debounce(async () => {
@@ -716,27 +637,13 @@
             setRefreshSpinner(true);
 
             try {
-                const enabledSources = Object.entries(NEWS_SOURCES)
-                    .filter(([_, source]) => source.enabled);
+                const data = await fetchWithRetry('https://florian-wahl.github.io/live-news-feed/feeds/news.json');
 
-                console.log('Fetching from enabled sources:', enabledSources.map(([_, s]) => s.name));
-
-                const allFeeds = await Promise.all(
-                    enabledSources.map(([id, source]) => fetchFeed(id, source))
-                );
-
-                allNewsItems = allFeeds.flat();
+                allNewsItems = data.items;
 
                 if (allNewsItems.length === 0) {
                     throw new Error('No news items found from any source');
                 }
-
-                // Sort by date in descending order (newest first)
-                allNewsItems.sort((a, b) => {
-                    const dateA = new Date(a.pubDate);
-                    const dateB = new Date(b.pubDate);
-                    return dateB - dateA;
-                });
 
                 const fragment = document.createDocumentFragment();
                 allNewsItems.forEach(item => {
@@ -747,7 +654,7 @@
                             item.pubDate,
                             item.description,
                             item.source,
-                            item.isError
+                            false
                         )
                     );
                 });
@@ -755,7 +662,7 @@
                 newsListEl.innerHTML = "";
                 newsListEl.appendChild(fragment);
 
-                lastUpdatedEl.textContent = new Date().toLocaleTimeString(undefined, {
+                lastUpdatedEl.textContent = new Date(data.lastUpdated).toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
                     second: "2-digit",
@@ -784,6 +691,16 @@
                 setRefreshSpinner(false);
             }
         }, 1000);
+
+        function updateNextRefreshTime() {
+            const nextRefresh = new Date(Date.now() + REFRESH_INTERVAL_MS);
+            nextRefreshEl.textContent = `Next refresh: ${nextRefresh.toLocaleTimeString()}`;
+        }
+
+        function setRefreshSpinner(active) {
+            refreshSpinner.classList.toggle('active', active);
+            refreshButton.disabled = active;
+        }
 
         function startRefreshInterval() {
             if (refreshInterval) {
