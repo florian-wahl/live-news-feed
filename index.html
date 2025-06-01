@@ -587,7 +587,6 @@
 
             try {
                 console.log('Fetching from:', url);
-
                 requestCount++;
                 const response = await fetch(url);
 
@@ -598,12 +597,24 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                if (!data || !data.items) {
-                    throw new Error('Invalid response format');
-                }
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, "text/xml");
 
-                return data;
+                const items = Array.from(xmlDoc.getElementsByTagName("item")).map(item => ({
+                    title: item.getElementsByTagName("title")[0]?.textContent || "",
+                    link: item.getElementsByTagName("link")[0]?.textContent || "",
+                    pubDate: item.getElementsByTagName("pubDate")[0]?.textContent || "",
+                    description: item.getElementsByTagName("description")[0]?.textContent || "",
+                    source: url.includes("nytimes.com") ? "New York Times" :
+                        url.includes("wsj.com") ? "Wall Street Journal" :
+                            url.includes("theguardian.com") ? "The Guardian" :
+                                url.includes("bbc.co.uk") ? "BBC News" :
+                                    url.includes("npr.org") ? "NPR" :
+                                        url.includes("reuters.com") ? "Reuters" : "Unknown Source"
+                }));
+
+                return items;
             } catch (error) {
                 console.error('Fetch error:', error);
                 if (retries > 0) {
@@ -637,9 +648,17 @@
             setRefreshSpinner(true);
 
             try {
-                const data = await fetchWithRetry('https://florian-wahl.github.io/live-news-feed/feeds/news.json');
+                const enabledSources = Object.entries(NEWS_SOURCES)
+                    .filter(([_, source]) => source.enabled)
+                    .map(([_, source]) => source);
 
-                allNewsItems = data.items;
+                const allFeeds = await Promise.all(
+                    enabledSources.map(source => fetchWithRetry(source.url))
+                );
+
+                allNewsItems = allFeeds.flat().sort((a, b) =>
+                    new Date(b.pubDate) - new Date(a.pubDate)
+                );
 
                 if (allNewsItems.length === 0) {
                     throw new Error('No news items found from any source');
@@ -662,7 +681,7 @@
                 newsListEl.innerHTML = "";
                 newsListEl.appendChild(fragment);
 
-                lastUpdatedEl.textContent = new Date(data.lastUpdated).toLocaleTimeString(undefined, {
+                lastUpdatedEl.textContent = new Date().toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
                     second: "2-digit",
