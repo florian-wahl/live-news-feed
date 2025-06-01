@@ -731,7 +731,12 @@
                     throw new Error('No news items found from any source');
                 }
 
-                allNewsItems.sort((a, b) => b.date - a.date);
+                // Sort by date in descending order (newest first)
+                allNewsItems.sort((a, b) => {
+                    const dateA = new Date(a.pubDate);
+                    const dateB = new Date(b.pubDate);
+                    return dateB - dateA;
+                });
 
                 const fragment = document.createDocumentFragment();
                 allNewsItems.forEach(item => {
