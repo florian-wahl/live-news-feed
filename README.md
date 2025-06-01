@@ -1,44 +1,53 @@
-# News Feed Aggregator
+# Live News Feed
 
-A modern, dark-themed news feed aggregator that combines multiple RSS feeds into a single, easy-to-read interface. Built with vanilla JavaScript, HTML, and CSS.
+A modern, responsive news feed aggregator that displays headlines from multiple sources in real-time. Built with vanilla JavaScript and Material Design 3.
 
 ## Features
 
-- Multiple news source support (NYT, WSJ, The Guardian, NPR, BBC)
-- Dark theme for comfortable reading
-- Real-time feed updates
-- Source toggling
-- Responsive design
-- No backend required - runs entirely in the browser
+- Real-time news updates from multiple sources
+- Material Design 3 dark theme
+- Responsive layout for all devices
+- Source toggles to filter news
+- Automatic refresh with rate limiting
+- Error handling and retry logic
 
-## Live Demo
+## News Sources
 
-[Add your GitHub Pages URL here once deployed]
-
-## Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/florian-wahl/live-news-feed.git
-```
-
-2. Open `index.html` in your browser or serve it using a local server:
-```bash
-# Using Python
-python -m http.server 8000
-
-# Using Node.js
-npx serve
-```
-
-3. Visit `http://localhost:8000` in your browser
+- New York Times
+- Wall Street Journal
+- The Guardian
+- BBC News
+- NPR
+- Reuters
 
 ## Usage
 
-- Toggle news sources using the sidebar controls
-- Click "Refresh Now" to manually update feeds
-- Click on any news title to read the full article
-- Feeds automatically refresh every 30 seconds
+Simply open `index.html` in a modern web browser. The feed will automatically start fetching and displaying news items.
+
+### Controls
+
+- Use the source toggles in the sidebar to filter news by source
+- Click "Refresh Now" to manually update the feed
+- The feed automatically refreshes every 30 seconds
+
+## Technical Details
+
+- Built with vanilla JavaScript (no frameworks)
+- Uses Material Design 3 for styling
+- Implements rate limiting and exponential backoff for API requests
+- Handles CORS through a proxy service
+- Responsive design with mobile-first approach
+
+## Browser Support
+
+Works in all modern browsers that support:
+- ES6+ JavaScript
+- CSS Grid and Flexbox
+- Fetch API
+
+## License
+
+MIT License - see LICENSE file for details
 
 ## Project Structure
 
@@ -56,10 +65,6 @@ live-news-feed/
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
