@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   fetch-feeds:
@@ -29,15 +27,9 @@ jobs:
       - name: Fetch and process feeds
         run: node .github/scripts/fetch-feeds.js
         
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-        
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: feeds
-          path: feeds
-          
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2 
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: feeds
+          branch: gh-pages
+          clean: true 
