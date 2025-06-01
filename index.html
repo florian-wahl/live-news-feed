@@ -76,6 +76,7 @@
             margin-left: 280px;
             display: flex;
             flex-direction: column;
+            overflow: visible;
         }
 
         main {
@@ -84,6 +85,7 @@
             max-width: 800px;
             margin: 0 auto;
             width: 100%;
+            overflow: visible;
         }
 
         #news-list {
@@ -92,6 +94,14 @@
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
+            position: relative;
+        }
+
+        #news-list::before {
+            content: '';
+            display: block;
+            height: 2rem;
+            width: 100%;
         }
 
         #news-list li {
@@ -106,6 +116,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
+            transform: translateZ(0);
         }
 
         #news-list li:hover {
