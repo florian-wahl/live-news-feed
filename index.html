@@ -637,7 +637,7 @@
             setRefreshSpinner(true);
 
             try {
-                const data = await fetchWithRetry('https://florian-wahl.github.io/live-news-feed/feeds/news.json');
+                const data = await fetchWithRetry('https://raw.githubusercontent.com/florian-wahl/live-news-feed/main/feeds/news.json');
 
                 allNewsItems = data.items;
 
