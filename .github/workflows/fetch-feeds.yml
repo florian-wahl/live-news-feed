@@ -29,12 +29,14 @@ jobs:
       - name: Fetch and process feeds
         run: node .github/scripts/fetch-feeds.js
         
-      - name: Deploy to main branch
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
         with:
-          folder: feeds
-          branch: main
-          clean: true
-          clean-exclude: |
-            .git
-            .gitignore 
+          path: feeds
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2 
