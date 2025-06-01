@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   fetch-feeds:
@@ -24,12 +26,19 @@ jobs:
       - name: Install dependencies
         run: npm install axios xml2js
         
+      - name: Create feeds directory
+        run: mkdir -p feeds
+        
       - name: Fetch and process feeds
         run: node .github/scripts/fetch-feeds.js
         
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
         with:
-          folder: feeds
-          branch: gh-pages
-          clean: true 
+          path: feeds
+          
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v2 
