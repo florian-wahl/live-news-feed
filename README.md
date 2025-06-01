@@ -19,7 +19,7 @@ A modern, dark-themed news feed aggregator that combines multiple RSS feeds into
 
 1. Clone the repository:
 ```bash
-git clone [your-repo-url]
+git clone https://github.com/florian-wahl/live-news-feed.git
 ```
 
 2. Open `index.html` in your browser or serve it using a local server:
@@ -43,7 +43,7 @@ npx serve
 ## Project Structure
 
 ```
-nyt-feed/
+live-news-feed/
 ├── index.html          # Main application file
 ├── README.md          # Project documentation
 └── .gitignore         # Git ignore file
