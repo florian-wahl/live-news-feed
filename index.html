@@ -469,10 +469,12 @@
         // Using a more reliable CORS proxy
         const CORS_PROXY = "https://corsproxy.io/?";
 
-        const REFRESH_INTERVAL_MS = 30 * 1000;
+        const REFRESH_INTERVAL_MS = 30 * 1000; // 30 seconds
         const MAX_RETRIES = 3;
         const RETRY_DELAY_MS = 2000;
-        const MIN_REFRESH_INTERVAL = 5000;
+        const MIN_REFRESH_INTERVAL = 5000; // 5 seconds minimum between refreshes
+        const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute window
+        const MAX_REQUESTS_PER_WINDOW = 30; // Maximum requests per minute
 
         const newsListEl = document.getElementById("news-list");
         const lastUpdatedEl = document.getElementById("last-updated");
@@ -484,9 +486,26 @@
         let retryCount = 0;
         let refreshInterval;
         let allNewsItems = [];
+        let requestCount = 0;
+        let lastRequestReset = Date.now();
 
         // Cache DOM parser
         const parser = new DOMParser();
+
+        // Rate limiting check
+        function checkRateLimit() {
+            const now = Date.now();
+            if (now - lastRequestReset >= RATE_LIMIT_WINDOW) {
+                requestCount = 0;
+                lastRequestReset = now;
+            }
+            return requestCount < MAX_REQUESTS_PER_WINDOW;
+        }
+
+        // Exponential backoff delay
+        function getBackoffDelay(attempt) {
+            return Math.min(1000 * Math.pow(2, attempt), 30000); // Max 30 seconds
+        }
 
         // Create a single news item element
         function createNewsItem(title, link, pubDate, description, source, isError = false) {
@@ -572,10 +591,15 @@
         }
 
         async function fetchWithRetry(url, retries = MAX_RETRIES) {
+            if (!checkRateLimit()) {
+                throw new Error('Rate limit exceeded. Please wait before refreshing.');
+            }
+
             try {
                 const proxyUrl = CORS_PROXY + encodeURIComponent(url);
                 console.log('Fetching from:', proxyUrl);
 
+                requestCount++;
                 const response = await fetch(proxyUrl, {
                     method: 'GET',
                     headers: {
@@ -585,6 +609,9 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 429) { // Too Many Requests
+                        throw new Error('Rate limit exceeded. Please wait before refreshing.');
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
@@ -597,8 +624,9 @@
             } catch (error) {
                 console.error('Fetch error:', error);
                 if (retries > 0) {
-                    console.log(`Retrying... (${retries} attempts left)`);
-                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                    const delay = getBackoffDelay(MAX_RETRIES - retries);
+                    console.log(`Retrying in ${delay}ms... (${retries} attempts left)`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
                     return fetchWithRetry(url, retries - 1);
                 }
                 throw error;
@@ -670,10 +698,24 @@
 
         const fetchAndRenderFeed = debounce(async () => {
             const now = Date.now();
-            if (now - lastFetchTime < MIN_REFRESH_INTERVAL) return;
-            lastFetchTime = now;
+            if (now - lastFetchTime < MIN_REFRESH_INTERVAL) {
+                console.log('Skipping refresh - too soon since last fetch');
+                return;
+            }
 
+            if (!checkRateLimit()) {
+                console.log('Skipping refresh - rate limit reached');
+                newsListEl.innerHTML = `
+                    <li style="color: var(--md-sys-color-error); padding: 1rem;">
+                        <h3>Rate Limit Reached</h3>
+                        <p>Too many requests. Please wait a moment before refreshing.</p>
+                    </li>`;
+                return;
+            }
+
+            lastFetchTime = now;
             setRefreshSpinner(true);
+
             try {
                 const enabledSources = Object.entries(NEWS_SOURCES)
                     .filter(([_, source]) => source.enabled);
@@ -723,12 +765,12 @@
 
                 if (retryCount >= MAX_RETRIES) {
                     newsListEl.innerHTML = `
-                        <li style="color: red; padding: 1rem;">
+                        <li style="color: var(--md-sys-color-error); padding: 1rem;">
                             <h3>Failed to load news feeds</h3>
                             <p>Error: ${err.message}</p>
                             <p>Please try:</p>
                             <ul style="margin-left: 1rem;">
-                                <li>Refreshing the page</li>
+                                <li>Waiting a few minutes before refreshing</li>
                                 <li>Checking your internet connection</li>
                                 <li>Disabling any ad blockers</li>
                             </ul>
