@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NYT Live RSS Feed (Single File)</title>
+    <style>
+        /* === Embedded CSS === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                "Helvetica Neue", Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 220px;
+            background-color: #242424;
+            border-right: 1px solid #333;
+            padding: 1.25rem 1rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .sidebar-header {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            color: #fff;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: none;
+            /* Hide the old header */
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        #news-list {
+            list-style: none;
+            contain: content;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        #news-list li {
+            background-color: #242424;
+            padding: 1.75rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+            contain: layout style;
+            border: 1px solid #333;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        #news-list li:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+            border-color: #444;
+        }
+
+        .news-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4d8fff;
+            text-decoration: none;
+            display: block;
+            line-height: 1.4;
+            margin-bottom: 0.25rem;
+            transition: color 0.2s;
+        }
+
+        .news-title:hover {
+            text-decoration: none;
+            color: #6ba4ff;
+        }
+
+        .news-meta {
+            font-size: 0.85rem;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .news-meta::before {
+            content: "•";
+            color: #666;
+        }
+
+        .news-desc {
+            font-size: 1rem;
+            color: #ccc;
+            overflow-wrap: break-word;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            background-color: #242424;
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            border-top: 1px solid #333;
+            margin-top: 2rem;
+            color: #aaa;
+        }
+
+        .refresh-status {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .refresh-button {
+            background: #2d5bb9;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 0.4rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .refresh-button:hover {
+            background-color: #3a6fd1;
+        }
+
+        .refresh-button:active {
+            background-color: #1e4a9e;
+        }
+
+        .refresh-button:disabled {
+            background-color: #444;
+            cursor: not-allowed;
+        }
+
+        .next-refresh {
+            color: #aaa;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .sources-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .source-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.6rem;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        .source-toggle:hover {
+            background: #333;
+            border-color: #444;
+        }
+
+        .source-toggle.active {
+            background: #2d5bb9;
+            color: white;
+            border-color: #2d5bb9;
+        }
+
+        .source-toggle input[type="checkbox"] {
+            display: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 0.875rem;
+            height: 0.875rem;
+            border: 2px solid #333;
+            border-top: 2px solid #2d5bb9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-left: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid #333;
+                padding: 0.75rem;
+            }
+
+            .sidebar-header {
+                padding-bottom: 0.75rem;
+            }
+
+            .refresh-status {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .refresh-button {
+                width: auto;
+            }
+
+            .sources-container {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.35rem;
+            }
+
+            .source-toggle {
+                flex: 0 1 auto;
+            }
+
+            #news-list li {
+                padding: 1.25rem;
+            }
+
+            .news-title {
+                font-size: 1.25rem;
+            }
+
+            .news-source {
+                bottom: 0.75rem;
+                right: 0.75rem;
+            }
+        }
+
+        .news-item {
+            position: relative;
+        }
+
+        .news-source {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            font-size: 0.75rem;
+            color: #888;
+            background: #2a2a2a;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>News Feed</h1>
+            <div class="refresh-status">
+                <button class="refresh-button" id="refresh-button">Refresh Now</button>
+                <div class="next-refresh">
+                    <span class="spinner" id="refresh-spinner"></span>
+                    <span id="next-refresh"></span>
+                </div>
+            </div>
+        </div>
+        <div class="sources-container" id="sources-container">
+            <!-- Source toggles will be added here -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <main>
+            <ul id="news-list">
+                <!-- JavaScript will inject <li> items here -->
+            </ul>
+        </main>
+
+        <footer>
+            <small>Last updated at <span id="last-updated">–</span></small>
+        </footer>
+    </div>
+
+    <script>
+        /* === Embedded JavaScript === */
+        const NEWS_SOURCES = {
+            nyt: {
+                name: "New York Times",
+                url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+                enabled: true
+            },
+            wsj: {
+                name: "Wall Street Journal",
+                url: "https://feeds.content.dowjones.io/public/rss/RSSWorldNews",
+                enabled: true
+            },
+            guardian: {
+                name: "The Guardian",
+                url: "https://www.theguardian.com/world/rss",
+                enabled: true
+            },
+            npr: {
+                name: "NPR",
+                url: "https://feeds.npr.org/1004/rss.xml",
+                enabled: true
+            },
+            bbc: {
+                name: "BBC News",
+                url: "https://feeds.bbci.co.uk/news/world/rss.xml",
+                enabled: true
+            }
+        };
+
+        // Using a more reliable CORS proxy
+        const CORS_PROXY = "https://corsproxy.io/?";
+
+        const REFRESH_INTERVAL_MS = 30 * 1000;
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 2000;
+        const MIN_REFRESH_INTERVAL = 5000;
+
+        const newsListEl = document.getElementById("news-list");
+        const lastUpdatedEl = document.getElementById("last-updated");
+        const refreshButton = document.getElementById("refresh-button");
+        const refreshSpinner = document.getElementById("refresh-spinner");
+        const nextRefreshEl = document.getElementById("next-refresh");
+        const sourcesContainer = document.getElementById("sources-container");
+        let lastFetchTime = 0;
+        let retryCount = 0;
+        let refreshInterval;
+        let allNewsItems = [];
+
+        // Cache DOM parser
+        const parser = new DOMParser();
+
+        // Create a single news item element
+        function createNewsItem(title, link, pubDate, description, source, isError = false) {
+            const li = document.createElement("li");
+            li.className = `news-item ${isError ? 'error' : ''}`;
+            const sourceConfig = Object.values(NEWS_SOURCES).find(s => s.name === source);
+            li.style.display = sourceConfig && sourceConfig.enabled ? 'block' : 'none';
+
+            const a = document.createElement("a");
+            a.href = link;
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.textContent = title;
+            a.className = "news-title";
+
+            const meta = document.createElement("div");
+            meta.className = "news-meta";
+            meta.textContent = formatDate(new Date(pubDate));
+
+            const desc = document.createElement("div");
+            desc.className = "news-desc";
+            desc.innerHTML = description;
+
+            const sourceLabel = document.createElement("div");
+            sourceLabel.className = "news-source";
+            sourceLabel.textContent = source;
+
+            li.appendChild(a);
+            li.appendChild(meta);
+            li.appendChild(desc);
+            li.appendChild(sourceLabel);
+            return li;
+        }
+
+        // Debounce function to prevent rapid consecutive calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Format date once to avoid repeated calculations
+        function formatDate(date) {
+            return date.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+            });
+        }
+
+        // Initialize source toggles
+        function initializeSourceToggles() {
+            Object.entries(NEWS_SOURCES).forEach(([id, source]) => {
+                const toggle = document.createElement("label");
+                toggle.className = `source-toggle ${source.enabled ? 'active' : ''}`;
+                toggle.innerHTML = `
+                    <input type="checkbox" ${source.enabled ? 'checked' : ''}>
+                    <span>${source.name}</span>
+                `;
+                toggle.addEventListener('change', (e) => {
+                    NEWS_SOURCES[id].enabled = e.target.checked;
+                    toggle.classList.toggle('active', e.target.checked);
+                    // Update visibility of existing news items
+                    const newsItems = document.querySelectorAll('.news-item');
+                    newsItems.forEach(item => {
+                        const sourceLabel = item.querySelector('.news-source');
+                        if (sourceLabel && sourceLabel.textContent === source.name) {
+                            item.style.display = e.target.checked ? 'block' : 'none';
+                        }
+                    });
+                    // Only fetch new data if we're enabling a source
+                    if (e.target.checked) {
+                        fetchAndRenderFeed();
+                    }
+                });
+                sourcesContainer.appendChild(toggle);
+            });
+        }
+
+        async function fetchWithRetry(url, retries = MAX_RETRIES) {
+            try {
+                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                console.log('Fetching from:', proxyUrl);
+
+                const response = await fetch(proxyUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/xml, application/rss+xml, text/xml',
+                        'Content-Type': 'application/xml'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const text = await response.text();
+                if (!text || text.trim().length === 0) {
+                    throw new Error('Empty response received');
+                }
+
+                return text;
+            } catch (error) {
+                console.error('Fetch error:', error);
+                if (retries > 0) {
+                    console.log(`Retrying... (${retries} attempts left)`);
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                    return fetchWithRetry(url, retries - 1);
+                }
+                throw error;
+            }
+        }
+
+        async function fetchFeed(sourceId, source) {
+            try {
+                console.log(`Fetching feed from ${source.name}...`);
+                const xmlText = await fetchWithRetry(source.url);
+
+                // Log the first 200 characters of the response for debugging
+                console.log(`Response from ${source.name}:`, xmlText.substring(0, 200));
+
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+                const parserError = xmlDoc.querySelector('parsererror');
+                if (parserError) {
+                    console.error(`XML parsing error for ${source.name}:`, parserError.textContent);
+                    throw new Error('XML parsing failed');
+                }
+
+                const items = Array.from(xmlDoc.getElementsByTagName("item"));
+                console.log(`Found ${items.length} items from ${source.name}`);
+
+                if (items.length === 0) {
+                    throw new Error('No items found in feed');
+                }
+
+                return items.map(item => {
+                    const titleNode = item.getElementsByTagName("title")[0];
+                    const linkNode = item.getElementsByTagName("link")[0];
+                    const dateNode = item.getElementsByTagName("pubDate")[0];
+                    const descNode = item.getElementsByTagName("description")[0];
+
+                    return {
+                        title: titleNode?.textContent || "No title",
+                        link: linkNode?.textContent || "#",
+                        pubDate: dateNode?.textContent || new Date().toISOString(),
+                        description: descNode?.textContent || "",
+                        source: source.name,
+                        date: new Date(dateNode?.textContent || Date.now()),
+                        isError: false
+                    };
+                });
+            } catch (err) {
+                console.error(`Error fetching ${source.name} feed:`, err);
+                return [{
+                    title: `Error loading ${source.name} feed`,
+                    link: "#",
+                    pubDate: new Date().toISOString(),
+                    description: `Error: ${err.message}. Please try refreshing manually.`,
+                    source: source.name,
+                    date: new Date(),
+                    isError: true
+                }];
+            }
+        }
+
+        function updateNextRefreshTime() {
+            const nextRefresh = new Date(Date.now() + REFRESH_INTERVAL_MS);
+            nextRefreshEl.textContent = `Next refresh: ${nextRefresh.toLocaleTimeString()}`;
+        }
+
+        function setRefreshSpinner(active) {
+            refreshSpinner.classList.toggle('active', active);
+            refreshButton.disabled = active;
+        }
+
+        const fetchAndRenderFeed = debounce(async () => {
+            const now = Date.now();
+            if (now - lastFetchTime < MIN_REFRESH_INTERVAL) return;
+            lastFetchTime = now;
+
+            setRefreshSpinner(true);
+            try {
+                const enabledSources = Object.entries(NEWS_SOURCES)
+                    .filter(([_, source]) => source.enabled);
+
+                console.log('Fetching from enabled sources:', enabledSources.map(([_, s]) => s.name));
+
+                const allFeeds = await Promise.all(
+                    enabledSources.map(([id, source]) => fetchFeed(id, source))
+                );
+
+                allNewsItems = allFeeds.flat();
+
+                if (allNewsItems.length === 0) {
+                    throw new Error('No news items found from any source');
+                }
+
+                allNewsItems.sort((a, b) => b.date - a.date);
+
+                const fragment = document.createDocumentFragment();
+                allNewsItems.forEach(item => {
+                    fragment.appendChild(
+                        createNewsItem(
+                            item.title,
+                            item.link,
+                            item.pubDate,
+                            item.description,
+                            item.source,
+                            item.isError
+                        )
+                    );
+                });
+
+                newsListEl.innerHTML = "";
+                newsListEl.appendChild(fragment);
+
+                lastUpdatedEl.textContent = new Date().toLocaleTimeString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                });
+
+                retryCount = 0;
+                updateNextRefreshTime();
+            } catch (err) {
+                console.error("Error fetching or parsing feeds:", err);
+                retryCount++;
+
+                if (retryCount >= MAX_RETRIES) {
+                    newsListEl.innerHTML = `
+                        <li style="color: red; padding: 1rem;">
+                            <h3>Failed to load news feeds</h3>
+                            <p>Error: ${err.message}</p>
+                            <p>Please try:</p>
+                            <ul style="margin-left: 1rem;">
+                                <li>Refreshing the page</li>
+                                <li>Checking your internet connection</li>
+                                <li>Disabling any ad blockers</li>
+                            </ul>
+                        </li>`;
+                }
+            } finally {
+                setRefreshSpinner(false);
+            }
+        }, 1000);
+
+        function startRefreshInterval() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(fetchAndRenderFeed, REFRESH_INTERVAL_MS);
+            updateNextRefreshTime();
+        }
+
+        // Initialize the app
+        initializeSourceToggles();
+        fetchAndRenderFeed();
+        startRefreshInterval();
+
+        // Manual refresh button
+        refreshButton.addEventListener('click', () => {
+            fetchAndRenderFeed();
+        });
+
+        // Handle visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(refreshInterval);
+            } else {
+                fetchAndRenderFeed();
+                startRefreshInterval();
+            }
+        });
+    </script>
+</body>
+
+</html>
