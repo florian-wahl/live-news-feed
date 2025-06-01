@@ -222,7 +222,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0.5rem 0.75rem;
-            background: var(--md-sys-color-surface-variant);
+            background: var(--md-sys-color-surface);
             border: 1px solid var(--md-sys-color-outline);
             border-radius: 12px;
             cursor: pointer;
@@ -240,7 +240,7 @@
             display: none;
         }
 
-        /* Material Design Switch */
+        /* Material Design 3 Switch */
         .switch {
             position: relative;
             display: inline-block;
@@ -258,7 +258,7 @@
             bottom: 0;
             background-color: var(--md-sys-color-surface-variant);
             transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 20px;
+            border-radius: 10px;
             border: 1px solid var(--md-sys-color-outline);
         }
 
@@ -275,14 +275,9 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        .source-toggle input:checked+.switch-track {
-            background-color: var(--md-sys-color-primary);
-            border-color: var(--md-sys-color-primary);
-        }
-
         .source-toggle input:checked+.switch-track:before {
             transform: translateX(16px);
-            background-color: var(--md-sys-color-on-primary);
+            background-color: var(--md-sys-color-primary);
         }
 
         .source-toggle input:focus+.switch-track {
@@ -295,20 +290,21 @@
         }
 
         .source-toggle.active .switch-track {
-            background-color: var(--md-sys-color-primary);
+            background-color: var(--md-sys-color-primary-container);
             border-color: var(--md-sys-color-primary);
         }
 
         .source-toggle.active .switch-track:before {
-            background-color: var(--md-sys-color-on-primary);
+            background-color: var(--md-sys-color-primary);
             transform: translateX(16px);
         }
 
         .source-label {
             flex-grow: 1;
             margin-right: 0.75rem;
-            font-size: 0.8125rem;
+            font-size: 0.875rem;
             font-weight: 500;
+            color: var(--md-sys-color-on-surface);
         }
 
         .spinner {
@@ -567,8 +563,11 @@
                 const toggle = document.createElement("label");
                 toggle.className = `source-toggle ${source.enabled ? 'active' : ''}`;
                 toggle.innerHTML = `
-                    <input type="checkbox" ${source.enabled ? 'checked' : ''}>
-                    <span>${source.name}</span>
+                    <span class="source-label">${source.name}</span>
+                    <div class="switch">
+                        <input type="checkbox" ${source.enabled ? 'checked' : ''}>
+                        <span class="switch-track"></span>
+                    </div>
                 `;
                 toggle.addEventListener('change', (e) => {
                     NEWS_SOURCES[id].enabled = e.target.checked;
